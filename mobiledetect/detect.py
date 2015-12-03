@@ -19,6 +19,9 @@ DEVICE_BROWSERS = {}
 ALL_RULES = {}
 MOBILE_HTTP_HEADERS = {}
 UA_HTTP_HEADERS = {}
+PROPERTIES = {}
+
+VER = '([\w._\+]+)'
 
 class MobileDetectRuleFileError(Exception):
     pass
@@ -35,6 +38,8 @@ def load_rules(filename=None):
     global ALL_RULES
     global MOBILE_HTTP_HEADERS
     global UA_HTTP_HEADERS
+    global PROPERTIES
+    global VER
 
     if filename is None:
         filename = os.path.join(os.path.dirname(os.path.realpath(__file__)), "Mobile_Detect.json")
@@ -59,6 +64,17 @@ def load_rules(filename=None):
     ALL_RULES.update(DEVICE_PHONES)
     ALL_RULES.update(DEVICE_TABLETS)
     ALL_RULES.update(DEVICE_BROWSERS)
+
+    if "properties" in rules:
+        for name, match in rules['properties'].items():
+            arr = []
+            if isinstance(match, str):
+                arr.append(re.compile(match.replace('[VER]', VER), re.IGNORECASE|re.DOTALL))
+            else:
+                for v in match:
+                    arr.append(re.compile(v.replace('[VER]', VER), re.IGNORECASE|re.DOTALL))
+            PROPERTIES[name] = arr
+
 
 load_rules()
 
@@ -201,4 +217,20 @@ class MobileDetect(object):
         Return the browser 'grade'
         """
         raise NotImplementedError()
+
+    def version(self, name):
+        '''
+
+        :param name:
+        :return:
+        '''
+        try:
+            for pattern in PROPERTIES[name]:
+                m = pattern.search(self.useragent)
+                version = m.group(1)
+                if version:
+                    return float(version.replace("_","."))
+        except KeyError:
+            pass
+        return 0
 
